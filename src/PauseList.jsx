@@ -1,7 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 
-const PAUSE_DURATION_MIN = 1;
+const PAUSE_DURATION_MIN = 5;
 
 function getRemainingMinutes(startTime) {
   const end = startTime.toMillis() + PAUSE_DURATION_MIN * 60 * 1000;

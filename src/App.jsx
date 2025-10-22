@@ -6,7 +6,7 @@ import PauseLight from "./PauseLight";
 import UserPause from "./UserPause";
 import PauseList from "./PauseList";
 
-const PAUSE_DURATION_MIN = 1;
+const PAUSE_DURATION_MIN = 5;
 const MAX_PAUSES = 4;
 
 function generateAnonymousName() {
