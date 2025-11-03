@@ -1,7 +1,6 @@
 import React from "react";
 import PropTypes from "prop-types";
-
-const PAUSE_DURATION_MIN = 5;
+import { PAUSE_DURATION_MIN } from "../utils/constants";
 
 function getRemainingMinutes(startTime) {
   const end = startTime.toMillis() + PAUSE_DURATION_MIN * 60 * 1000;
@@ -14,7 +13,10 @@ export default function PauseList({ pauses }) {
     <ul className="list-group list-pauses">
       {pauses.map(p => (
         <li key={p.id} className="list-group-item d-flex justify-content-between align-items-center">
-          <span className="text-muted small">{p.name || p.uid}</span>
+          <span className="text-muted small">
+            {p.avatar && <span style={{fontSize: "1.5rem", marginRight: 6}}>{p.avatar}</span>}
+            {p.name || p.uid}
+          </span>
           <span>{getRemainingMinutes(p.startTime)} min restantes</span>
         </li>
       ))}
@@ -26,6 +28,7 @@ PauseList.propTypes = {
   pauses: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.string.isRequired,
     name: PropTypes.string,
+    avatar: PropTypes.string,
     uid: PropTypes.string.isRequired,
     startTime: PropTypes.object.isRequired
   })).isRequired

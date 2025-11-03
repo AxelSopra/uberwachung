@@ -1,101 +1,71 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
 import "./App.css";
-import { db, ensureAnonymousSignIn } from "./firebase";
-import { collection, addDoc, query, onSnapshot, serverTimestamp, orderBy, deleteDoc, doc } from "firebase/firestore";
-import PauseLight from "./PauseLight";
-import UserPause from "./UserPause";
-import PauseList from "./PauseList";
-
-const PAUSE_DURATION_MIN = 5;
-const MAX_PAUSES = 4;
-
-function generateAnonymousName() {
-  const animals = ["Aigle", "Tigre", "Loup", "Renard", "Panthère", "Ours", "Lynx", "Cerf", "Héron", "Chouette", "Dauphin", "Panda", "Zèbre", "Koala", "Gazelle"];
-  const colors = ["bleu", "rouge", "vert", "jaune", "noir", "blanc", "gris", "orange", "violet", "rose", "marron", "argenté", "doré", "turquoise", "sable"];
-  const animal = animals[Math.floor(Math.random() * animals.length)];
-  const color = colors[Math.floor(Math.random() * colors.length)];
-  return `${animal} ${color}`;
-}
+import PauseLight from "./components/PauseLight";
+import UserPause from "./components/UserPause";
+import PauseList from "./components/PauseList";
+import usePauses from "./hooks/usePauses";
+import UserProfileForm from "./components/UserProfileForm";
+import { AVATAR_LIST, MAX_PAUSES } from "./utils/constants";
 
 export default function App() {
-  const [user, setUser] = useState(null);
-  const [pauses, setPauses] = useState([]);
-  const [userPause, setUserPause] = useState(null);
-  const [remaining, setRemaining] = useState(0);
+  // Gestion du profil utilisateur
+  const [userName, setUserName] = useState(UserProfileForm.getInitialName());
+  const [userAvatar, setUserAvatar] = useState(UserProfileForm.getInitialAvatar());
+  const [firebaseUid, setFirebaseUid] = useState(null);
 
-  // Connexion anonyme
   useEffect(() => {
-    ensureAnonymousSignIn().then(setUser);
+    const auth = getAuth();
+    signInAnonymously(auth);
+    onAuthStateChanged(auth, (user) => {
+      if (user) setFirebaseUid(user.uid);
+    });
   }, []);
 
-  // Écoute Firestore
-  useEffect(() => {
-    const q = query(collection(db, "pauses"), orderBy("startTime", "asc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const now = Date.now();
-      const active = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(p => now < p.startTime.toMillis() + PAUSE_DURATION_MIN * 60 * 1000);
-      setPauses(active);
-      // Pause de l'utilisateur en cours
-      const myPause = active.find(p => p.uid === user?.uid);
-      setUserPause(myPause || null);
-      if (myPause) {
-        const end = myPause.startTime.toMillis() + PAUSE_DURATION_MIN * 60 * 1000;
-        setRemaining(Math.max(0, Math.ceil((end - now) / 60000)));
-      } else {
-        setRemaining(0);
-      }
-    });
-    return unsubscribe;
-  }, [user]);
+  // Gestion des pauses
+  const {
+    pauses,
+    userPause,
+    userPausesThisHalfDay,
+    remaining,
+    canTakePause,
+    handlePause
+  } = usePauses({ userId: firebaseUid, userName, userAvatar });
 
-  // Suppression automatique de la pause après 15 min
-  useEffect(() => {
-    if (!userPause) return;
-    const end = userPause.startTime.toMillis() + PAUSE_DURATION_MIN * 60 * 1000;
-    const timeout = setTimeout(async () => {
-      // Suppression de la pause
-      await deleteDoc(doc(db, "pauses", userPause.id));
-    }, end - Date.now());
-    return () => clearTimeout(timeout);
-  }, [userPause]);
-
-  const handlePause = async () => {
-    if (!user || userPause) return;
-    const anonymousName = generateAnonymousName();
-    await addDoc(collection(db, "pauses"), {
-      uid: user.uid,
-      name: anonymousName,
-      startTime: serverTimestamp()
-    });
-  };
-
-  const getLightColor = () => {
-    if (pauses.length >= MAX_PAUSES) return "red";
-    if (pauses.length >= MAX_PAUSES - 1) return "orange";
-    return "green";
-  };
+  if (!firebaseUid) {
+    return <div className="text-center mt-5">Chargement...</div>;
+  }
 
   return (
     <div className="text-center mt-5">
-      <div className="card card-feu shadow-sm mx-auto">
-        <div className="card-body">
-          <h1 className="mb-4">Feu Pause Téléconseillers</h1>
-          <div className="d-flex justify-content-center mb-4">
-            <PauseLight color={getLightColor()} />
-          </div>
-          <button
-            onClick={handlePause}
-            disabled={!user || !!userPause || pauses.length >= MAX_PAUSES}
-            className="btn btn-primary btn-lg w-100 mb-3 btn-pause"
-          >
-            Je pars en pause
-          </button>
-          {userPause && <UserPause name={userPause.name} remaining={remaining} />}
-          <div className="mt-4">
-            <h5 className="mb-3">Pauses en cours <span className="badge bg-secondary">{pauses.length}</span></h5>
-            <PauseList pauses={pauses} />
+      <div className="container-row">
+        <div className="profile-form">
+          <UserProfileForm
+            userName={userName}
+            setUserName={setUserName}
+            userAvatar={userAvatar}
+            setUserAvatar={setUserAvatar}
+            avatarList={AVATAR_LIST}
+          />
+        </div>
+        <div className="card card-feu shadow-sm">
+          <div className="card-body">
+            <h1 className="mb-4">Feu Rouge DRC</h1>
+            <div className="d-flex justify-content-center mb-4">
+              <PauseLight color={pauses.length >= MAX_PAUSES ? "red" : pauses.length >= MAX_PAUSES - 1 ? "orange" : "green"} />
+            </div>
+            <button
+              onClick={handlePause}
+              disabled={!canTakePause}
+              className="btn btn-primary btn-lg w-100 mb-3 btn-pause"
+            >
+              Je pars en pause
+            </button>
+            {userPause && <UserPause name={userPause.name} avatar={userPause.avatar} remaining={remaining} />}
+            <div className="list-pauses mt-4">
+              <h5 className="mb-3">Pauses en cours <span className="badge bg-secondary">{pauses.length}</span></h5>
+              <PauseList pauses={pauses} />
+            </div>
           </div>
         </div>
       </div>

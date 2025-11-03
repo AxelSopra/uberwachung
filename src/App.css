@@ -20,11 +20,17 @@
 
 .card-feu {
   max-width: 400px;
+  width: 100%;
 }
 
 .btn-pause {
   font-size: 1.2rem;
   padding: 0.75rem 0;
+}
+
+.list-pauses {
+  max-width: 400px;
+  width: 100%;
 }
 
 .list-pauses .list-group-item {
@@ -35,3 +41,20 @@ h1, h5 {
   font-family: 'Segoe UI', 'Arial', sans-serif;
 }
 
+.container-row {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.profile-form {
+  min-width: 400px;
+}
+
+@media (max-width: 900px) {
+  .container-row {
+    flex-direction: column;
+    align-items: center;
+  }
+}
